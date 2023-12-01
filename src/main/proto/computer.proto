@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package wong;
+
+// if got error for import refer this https://stackoverflow.com/questions/63526898/cannot-resolve-import-in-proto-file
+// and there is java OuterClass got generated, not sure why https://www.google.com/search?client=firefox-b-d&q=java+protoc+generated+java+file+name+got+outerclass
+import "component.proto";
+option java_package = "com.wong.grpc.pb";
+option java_multiple_files = true; //this tell protoc split one large file into multiple smaller files
+//option go_package = "GogRPC/pb;proto";
+
+
+
+// down gRPC library for go
+// go get -u google.golang.org/grpc
+
+// install vscode-proto3 extension
+// install Clang-Format extension
+
+// https://grpc.io/docs/languages/go/quickstart/
+// https://grpc.io/docs/protoc-installation/
+// https://www.geeksforgeeks.org/how-to-install-protocol-buffers-on-windows/ - put protoc exe path to windwos environment variable
+
+
+// if run below command hit this error --go_out: protoc-gen-go: plugins are not supported;
+// https://www.cnblogs.com/yanweifeng/p/17485496.html - according this website - go install github.com/golang/protobuf/protoc-gen-go
+// then run again the command should be success
+
+// protoc --proto_path=proto proto/processor_message.proto --go_out=plugins=grpc:pb
+// protoc --proto_path=proto proto/*.proto --go_out=plugins=grpc:pb
+
+// protoc --proto_path=. --go_out=. ./GogRPC/proto/*.proto - refer to this, this the one works without problem, above useless
+
+// https://www.lixueduan.com/posts/protobuf/01-import/ - refer to this for how to import other proto files, and also how to define which path refer to generated grpc go file, how to config grpc go file package name
+
+
+
+// class name need to Upper camel case
+message CPU {
+
+    // fields name need to snake_case
+    string brand = 1;
+    string name = 2;
+    uint32 number_cores = 3;
+    uint32 number_threads = 4;
+    double min_ghz = 5;
+    double max_ghz = 6;
+
+}
+
+message GPU {
+
+    string brand = 1;
+    string name = 2;
+    double min_ghz = 3;
+    double max_ghz = 4;
+    wong.Memory memory = 5;
+}

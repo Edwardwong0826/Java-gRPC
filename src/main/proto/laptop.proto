@@ -4,7 +4,7 @@ package wong;
 
 option java_package = "com.wong.grpc.pb";
 option java_multiple_files = true;
-//option go_package = "GogRPC/pb;proto";
+option go_package = "GogRPC/pb;proto";
 
 import "computer.proto";
 import "component.proto";

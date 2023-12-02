@@ -7,7 +7,7 @@ package wong;
 import "component.proto";
 option java_package = "com.wong.grpc.pb";
 option java_multiple_files = true; //this tell protoc split one large file into multiple smaller files
-//option go_package = "GogRPC/pb;proto";
+option go_package = "GogRPC/pb;proto";
 
 
 

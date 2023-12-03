@@ -21,20 +21,25 @@
             <version>3.25.1</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/io.grpc/grpc-all -->
+<!--        <dependency>-->
+<!--            <groupId>io.grpc</groupId>-->
+<!--            <artifactId>grpc-netty-shaded</artifactId>-->
+<!--            <version>1.59.1</version>-->
+<!--            <scope>runtime</scope>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>io.grpc</groupId>-->
+<!--            <artifactId>grpc-protobuf</artifactId>-->
+<!--            <version>1.59.1</version>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>io.grpc</groupId>-->
+<!--            <artifactId>grpc-stub</artifactId>-->
+<!--            <version>1.59.1</version>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>io.grpc</groupId>
-            <artifactId>grpc-netty-shaded</artifactId>
-            <version>1.59.1</version>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-protobuf</artifactId>
-            <version>1.59.1</version>
-        </dependency>
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-stub</artifactId>
+            <artifactId>grpc-all</artifactId>
             <version>1.59.1</version>
         </dependency>
         <dependency> <!-- necessary for Java 9+ -->
@@ -60,6 +65,17 @@
             <artifactId>protobuf-java-util</artifactId>
             <version>3.25.1</version>
         </dependency>
+        <dependency>
+            <groupId>javax.annotation</groupId>
+            <artifactId>javax.annotation-api</artifactId>
+            <version>1.3.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <version>RELEASE</version>
+            <scope>test</scope>
+        </dependency>
 
     </dependencies>
 
@@ -68,6 +84,8 @@
     https://github.com/grpc/grpc-java
     refer above to set up protobuf plugin
     ultimately if still not work, need to change to use gradle, as google only release their protobuf plugin in gradle
+    
+    After set up the protobuf plugin in pom file, we can directly use the plugin to generated java gRPC java for us
     -->
     <build>
         <extensions>
@@ -87,17 +105,15 @@
                     <protocArtifact>com.google.protobuf:protoc:3.24.0:exe:${os.detected.classifier}</protocArtifact>
                     <pluginId>grpc-java</pluginId>
                     <pluginArtifact>io.grpc:protoc-gen-grpc-java:1.59.1:exe:${os.detected.classifier}</pluginArtifact>
-<!--                    <additionalProtoPathElements>-->
-<!--                        <additionalProtoPathElement>${project.basedir}/src/main/proto</additionalProtoPathElement>-->
-<!--                    </additionalProtoPathElements>-->
+<!--                    <protoSourceRoot>-->
+<!--                        ${basedir}/src/main/proto-->
+<!--                    </protoSourceRoot>-->
                 </configuration>
                 <executions>
                     <execution>
                         <goals>
                             <goal>compile</goal>
                             <goal>compile-custom</goal>
-                            <goal>test-compile</goal>
-                            <goal>test-compile-custom</goal>
                         </goals>
                     </execution>
                 </executions>

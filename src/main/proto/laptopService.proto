@@ -7,6 +7,7 @@ option java_package = "com.wong.grpc.pb";
 option java_multiple_files = true;
 
 import "laptop.proto";
+import "filter.proto";
 
 message CreateLaptopRequest{
     Laptop laptop = 1;
@@ -15,7 +16,17 @@ message CreateLaptopRequest{
 message CreateLaptopResponse {
     string id = 1;
 }
+message SearchLaptopRequest{
+    Filter filter = 1;
+}
+
+message SearchLaptopResponse{
+    Laptop laptop = 1;
+}
+
 // run prtobuf:compile-custom to generate gRPC stubs class file
 service LaptopService {
     rpc CreateLaptop(CreateLaptopRequest) returns (CreateLaptopResponse) {};
+    // this is server-streaming RPC
+    rpc SearchLaptop(SearchLaptopRequest) returns (stream SearchLaptopResponse) {};
 }

@@ -1,10 +1,18 @@
 package com.wong.grpc.service;
 
+import com.wong.grpc.pb.Filter;
 import com.wong.grpc.pb.Laptop;
+import com.wong.grpc.pb.Memory;
+import io.grpc.Context;
 
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
+
 
 public class InMemoryLaptopStore implements LaptopStore {
+
+    private static final Logger logger = Logger.getLogger(InMemoryLaptopStore.class.getName());
 
     private ConcurrentHashMap<String, Laptop> data;
     public InMemoryLaptopStore () {
@@ -30,4 +38,60 @@ public class InMemoryLaptopStore implements LaptopStore {
         Laptop other = data.get(id).toBuilder().build();
         return other;
     }
+
+    @Override
+    public void Search(Context ctx, Filter filter, LaptopStream stream) {
+        for(Map.Entry<String, Laptop> entry : data.entrySet()){
+            if(ctx.isCancelled()){
+                logger.info("context is cancelled");
+                return;
+            }
+            Laptop laptop = entry.getValue();
+            if(isQualified(filter, laptop)){
+                stream.Send(laptop.toBuilder().build());
+            }
+        }
+    }
+
+    private boolean isQualified(Filter filter, Laptop laptop) {
+        if (laptop.getPriceUsd() > filter.getMaxPriceUsd()) {
+            return false;
+        }
+
+        if (laptop.getCpu().getNumberCores() < filter.getMinCpuCores()) {
+            return false;
+        }
+
+        if (laptop.getCpu().getMinGhz() < filter.getMinCpuGhz()) {
+            return false;
+        }
+
+        if (toBit(laptop.getRam()) < toBit(filter.getMinRam())) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private long toBit(Memory memory) {
+        long value = memory.getValue();
+
+        switch (memory.getUnit()) {
+            case BIT:
+                return value;
+            case BYTE:
+                return value << 3;
+            case KILOBYTE:
+                return value << 13;
+            case MEGABYTE:
+                return value << 23;
+            case GIGABYTE:
+                return value << 33;
+            case TERABYTE:
+                return value << 43;
+            default:
+                return 0;
+        }
+    }
+
 }

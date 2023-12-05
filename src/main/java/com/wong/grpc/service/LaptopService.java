@@ -1,9 +1,6 @@
 package com.wong.grpc.service;
 
-import com.wong.grpc.pb.CreateLaptopRequest;
-import com.wong.grpc.pb.CreateLaptopResponse;
-import com.wong.grpc.pb.Laptop;
-import com.wong.grpc.pb.LaptopServiceGrpc;
+import com.wong.grpc.pb.*;
 import io.grpc.Context;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
@@ -90,6 +87,25 @@ public class LaptopService extends LaptopServiceGrpc.LaptopServiceImplBase {
         responseObserver.onCompleted();
 
         logger.info("saved laptop with ID: " + other.getId());
+    }
+
+    @Override
+    public void searchLaptop(SearchLaptopRequest request, StreamObserver<SearchLaptopResponse> responseObserver) {
+        Filter filter = request.getFilter();
+        logger.info("got a search-laptop request with filter:\n" + filter);
+
+        laptopStore.Search(Context.current(), filter, new LaptopStream() {
+            @Override
+            public void Send(Laptop laptop) {
+                logger.info("found laptop with ID: " + laptop.getId());
+                SearchLaptopResponse response = SearchLaptopResponse.newBuilder().setLaptop(laptop).build();
+                responseObserver.onNext(response); // send this response to client
+            }
+        });
+
+        // tell client there won't be anymore responses
+        responseObserver.onCompleted();
+        logger.info("search laptop completed");
     }
 
 }

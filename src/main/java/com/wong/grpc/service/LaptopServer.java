@@ -12,13 +12,13 @@ public class LaptopServer {
     private final int port;
     private final Server server;
 
-    public LaptopServer(int port, LaptopStore store){
-        this(ServerBuilder.forPort(port), port, store);
+    public LaptopServer(int port, LaptopStore laptopStore, ImageStore imageStore){
+        this(ServerBuilder.forPort(port), port, laptopStore, imageStore);
     }
 
-    public LaptopServer(ServerBuilder serverBuilder, int port, LaptopStore store) {
+    public LaptopServer(ServerBuilder serverBuilder, int port, LaptopStore laptopStore, ImageStore imageStore) {
         this.port = port;
-        LaptopService laptopService = new LaptopService(store);
+        LaptopService laptopService = new LaptopService(laptopStore, imageStore);
         server = serverBuilder.addService(laptopService).build();
 
     }
@@ -54,8 +54,9 @@ public class LaptopServer {
     }
 
     public static void main(String args[]) throws IOException, InterruptedException {
-        InMemoryLaptopStore inMemoryLaptopStore = new InMemoryLaptopStore();
-        LaptopServer laptopServer = new LaptopServer(8080, inMemoryLaptopStore);
+        InMemoryLaptopStore laptopStore = new InMemoryLaptopStore();
+        DiskImageStore imageStore = new DiskImageStore("img");
+        LaptopServer laptopServer = new LaptopServer(8080, laptopStore, imageStore);
         laptopServer.start();
         laptopServer.blockUntilShutdown();
     }

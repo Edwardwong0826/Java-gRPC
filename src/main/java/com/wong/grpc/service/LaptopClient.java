@@ -12,6 +12,7 @@ import io.grpc.stub.StreamObserver;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.util.Iterator;
+import java.util.Scanner;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -24,7 +25,7 @@ public class LaptopClient {
     private final ManagedChannel channel;
     // this blocking stub is to call the unary RPC
     private final LaptopServiceGrpc.LaptopServiceBlockingStub blockingStub;
-    // we cannot use blocking stub to call the client streaming RPC instead need to use asynchronous stub
+    // we cannot use blocking stub to call the client streaming RPC, bidirectional-streaming RPC instead need to use asynchronous stub
     private final LaptopServiceGrpc.LaptopServiceStub asyncStub;
 
 
@@ -46,6 +47,9 @@ public class LaptopClient {
         CreateLaptopResponse response = CreateLaptopResponse.getDefaultInstance();
 
         try {
+            // send the RateLaptopRequest defined in proto file, noted this will call via gRPC stub, and this gRPC stub will call the underlying service class that implements generated gRPC interface methods
+            // (doesn't matter on which programming language, example Java gRPC and Go gRPC can interchange via the same define protobuf request)
+            // this RateLaptopRequest is kind of like JSON in REST to exchange in between API
             response = blockingStub.withDeadlineAfter(5, TimeUnit.SECONDS).createLaptop(request);
         } catch (StatusRuntimeException e) {
             if (e.getStatus().getCode() == Status.Code.ALREADY_EXISTS) {
@@ -68,6 +72,9 @@ public class LaptopClient {
 
         SearchLaptopRequest request = SearchLaptopRequest.newBuilder().setFilter(filter).build();
 
+        // send the RateLaptopRequest defined in proto file, noted this will call via gRPC stub, and this gRPC stub will call the underlying service class that implements generated gRPC interface methods
+        // (doesn't matter on which programming language, example Java gRPC and Go gRPC can interchange via the same define protobuf request)
+        // this RateLaptopRequest is kind of like JSON in REST to exchange in between API
         try {
             Iterator<SearchLaptopResponse> iterator = blockingStub
                     .withDeadlineAfter(5, TimeUnit.SECONDS)
@@ -122,6 +129,9 @@ public class LaptopClient {
         UploadImageRequest request = UploadImageRequest.newBuilder().setInfo(info).build();
 
         try {
+            // send the RateLaptopRequest defined in proto file, noted this will call via gRPC stub, and this gRPC stub will call the underlying service class that implements generated gRPC interface methods
+            // (doesn't matter on which programming language, example Java gRPC and Go gRPC can interchange via the same define protobuf request)
+            // this RateLaptopRequest is kind of like JSON in REST to exchange in between API
             requestObserver.onNext(request);
             logger.info("sent image info:\n" + info);
 
@@ -155,25 +165,126 @@ public class LaptopClient {
         }
     }
 
+    public void rateLaptop(String[] laptopIDs, double[] scores) throws InterruptedException {
+        CountDownLatch finishLatch = new CountDownLatch(1);
+        StreamObserver<RateLaptopRequest> requestObserver = asyncStub.withDeadlineAfter(5, TimeUnit.SECONDS)
+                .rateLaptop(new StreamObserver<RateLaptopResponse>() {
+                    @Override
+                    public void onNext(RateLaptopResponse response) {
+                        logger.info("laptop rated: id = " + response.getLaptopId() +
+                                ", count = " + response.getRatedCount() +
+                                ", average = " + response.getAverageScore());
+                    }
+
+                    @Override
+                    public void onError(Throwable t) {
+                        logger.log(Level.SEVERE, "rate laptop failed: " + t.getMessage());
+                        finishLatch.countDown();
+                    }
+
+                    @Override
+                    public void onCompleted() {
+                        logger.info("rate laptop completed");
+                        finishLatch.countDown();
+                    }
+                });
+
+        int n = laptopIDs.length;
+        try {
+            for (int i = 0; i < n; i++) {
+                RateLaptopRequest request = RateLaptopRequest.newBuilder()
+                        .setLaptopId(laptopIDs[i])
+                        .setScore(scores[i])
+                        .build();
+                // send the RateLaptopRequest defined in proto file, noted this will call via gRPC stub, and this gRPC stub will call the underlying service class that implements generated gRPC interface methods
+                // (doesn't matter on which programming language, example Java gRPC and Go gRPC can interchange via the same define protobuf request)
+                // this RateLaptopRequest is kind of like JSON in REST to exchange in between API
+                requestObserver.onNext(request);
+                logger.info("sent rate-laptop request: id = " + request.getLaptopId() + ", score = " + request.getScore());
+            }
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "unexpected error: " + e.getMessage());
+            requestObserver.onError(e);
+            return;
+        }
+
+        requestObserver.onCompleted();
+        if (!finishLatch.await(1, TimeUnit.MINUTES)) {
+            logger.warning("request cannot finish within 1 minute");
+        }
+    }
+
+    public static void testCreateLaptop(LaptopClient client, Generator generator) {
+        Laptop laptop = generator.NewLaptop();
+        client.createLaptop(laptop);
+    }
+
+    public static void testSearchLaptop(LaptopClient client, Generator generator) {
+        for (int i = 0; i < 10; i++) {
+            Laptop laptop = generator.NewLaptop();
+            client.createLaptop(laptop);
+        }
+
+        Memory minRam = Memory.newBuilder()
+                .setValue(8)
+                .setUnit(Memory.Unit.GIGABYTE)
+                .build();
+        Filter filter = Filter.newBuilder()
+                .setMaxPriceUsd(3000)
+                .setMinCpuCores(4)
+                .setMinCpuGhz(2.5)
+                .setMinRam(minRam)
+                .build();
+        client.searchLaptop(filter);
+    }
+
+    public static void testUploadImage(LaptopClient client, Generator generator) throws InterruptedException {
+        Laptop laptop = generator.NewLaptop();
+        client.createLaptop(laptop);
+        client.uploadImage(laptop.getId(), "tmp/laptop.jpg");
+    }
+
+    public static void testRateLaptop(LaptopClient client, Generator generator) throws InterruptedException {
+        int n = 3;
+        String[] laptopIDs = new String[n];
+
+        for (int i = 0; i < n; i++) {
+            Laptop laptop = generator.NewLaptop();
+            laptopIDs[i] = laptop.getId();
+            client.createLaptop(laptop);
+        }
+
+        Scanner scanner = new Scanner(System.in);
+        while (true) {
+            logger.info("rate laptop (y/n)? ");
+            String answer = scanner.nextLine();
+            if (answer.toLowerCase().trim().equals("n")) {
+                break;
+            }
+
+            double[] scores = new double[n];
+            for (int i = 0; i < n; i++) {
+                scores[i] = generator.NewLaptopScore();
+            }
+
+            client.rateLaptop(laptopIDs, scores);
+        }
+    }
+
+
+
+
     public static void main(String[] args) throws InterruptedException {
         LaptopClient laptopClient = new LaptopClient("0.0.0.0", 8080);
         Generator generator = new Generator();
 
         try {
-//            // Test create and search laptop
-//            for (int i=0; i<10; i++){
-//                Laptop laptop = generator.NewLaptop();
-//                laptopClient.createLaptop(laptop);
-//            }
-//
-//            Memory ram = Memory.newBuilder().setValue(8).setUnit(Memory.Unit.GIGABYTE).build();
-//            Filter filter = Filter.newBuilder().setMaxPriceUsd(3000).setMinCpuCores(4).setMinCpuGhz(2.5).setMinRam(ram).build();
-//
-//            laptopClient.searchLaptop(filter);
-//            // Test upload laptop image
-            Laptop laptop = generator.NewLaptop();
-            laptopClient.createLaptop(laptop);
-            laptopClient.uploadImage(laptop.getId(), "tmp/laptop.jpg");
+
+            // put in the method to for the client to test it out the feature
+            //testCreateLaptop(laptopClient, generator);
+            //testSearchLaptop(laptopClient,generator);
+            //testUploadImage(laptopClient, generator);
+            testRateLaptop(laptopClient, generator);
 
         } finally {
             laptopClient.shutdown();

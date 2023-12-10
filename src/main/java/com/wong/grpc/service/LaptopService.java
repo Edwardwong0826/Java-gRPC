@@ -18,10 +18,12 @@ public class LaptopService extends LaptopServiceGrpc.LaptopServiceImplBase {
     private static final Logger logger = Logger.getLogger(LaptopService.class.getName());
     private LaptopStore laptopStore;
     private ImageStore imageStore;
+    private RatingStore ratingStore;
 
-    public LaptopService(LaptopStore laptopStore, ImageStore imageStore) {
+    public LaptopService(LaptopStore laptopStore, ImageStore imageStore,  RatingStore ratingStore) {
         this.laptopStore = laptopStore;
         this.imageStore = imageStore;
+        this.ratingStore = ratingStore;
     }
     @Override
     public void createLaptop(CreateLaptopRequest request, StreamObserver<CreateLaptopResponse> responseObserver) {
@@ -212,4 +214,47 @@ public class LaptopService extends LaptopServiceGrpc.LaptopServiceImplBase {
         };
 
     }
+
+    @Override
+    public StreamObserver<RateLaptopRequest> rateLaptop(StreamObserver<RateLaptopResponse> responseObserver) {
+        return new StreamObserver<RateLaptopRequest>() {
+            @Override
+            public void onNext(RateLaptopRequest request) {
+                String laptopId = request.getLaptopId();
+                double score = request.getScore();
+
+                logger.info("received rate-laptop request: id = " + laptopId + ", score = " + score);
+
+                Laptop found = laptopStore.Find(laptopId);
+                if (found == null) {
+                    responseObserver.onError(
+                            Status.NOT_FOUND
+                                    .withDescription("laptop ID doesn't exist")
+                                    .asRuntimeException()
+                    );
+                    return;
+                }
+
+                Rating rating = ratingStore.Add(laptopId, score);
+                RateLaptopResponse response = RateLaptopResponse.newBuilder()
+                        .setLaptopId(laptopId)
+                        .setRatedCount(rating.getCount())
+                        .setAverageScore(rating.getSum() / rating.getCount())
+                        .build();
+
+                responseObserver.onNext(response);
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                logger.warning(t.getMessage());
+            }
+
+            @Override
+            public void onCompleted() {
+                responseObserver.onCompleted();
+            }
+        };
+    }
+
 }

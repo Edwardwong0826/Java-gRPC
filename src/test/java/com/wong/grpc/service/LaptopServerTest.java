@@ -1,12 +1,10 @@
 package com.wong.grpc.service;
 
-import com.wong.grpc.pb.CreateLaptopRequest;
-import com.wong.grpc.pb.CreateLaptopResponse;
-import com.wong.grpc.pb.Laptop;
-import com.wong.grpc.pb.LaptopServiceGrpc;
+import com.wong.grpc.pb.*;
 import com.wong.grpc.sample.Generator;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
+import io.grpc.stub.StreamObserver;
 import io.grpc.testing.GrpcCleanupRule;
 import org.junit.After;
 import org.junit.Before;
@@ -16,6 +14,9 @@ import io.grpc.inprocess.InProcessServerBuilder;
 import org.junit.Test;
 
 
+import java.util.LinkedList;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 public class LaptopServerTest {
@@ -24,8 +25,8 @@ public class LaptopServerTest {
     public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule(); // automatic graceful shutdown channel at the end of test
 
     private LaptopStore laptopStore;
-//    private ImageStore imageStore;
-//    private RatingStore ratingStore;
+    private ImageStore imageStore;
+    private RatingStore ratingStore;
 
     private LaptopServer server;
     private ManagedChannel channel;
@@ -36,11 +37,11 @@ public class LaptopServerTest {
         InProcessServerBuilder serverBuilder = InProcessServerBuilder.forName(serverName).directExecutor();
 
         laptopStore = new InMemoryLaptopStore();
-//        imageStore = new DiskImageStore("tmp");
-//        ratingStore = new InMemoryRatingStore();
+        imageStore = new DiskImageStore("tmp");
+        ratingStore = new InMemoryRatingStore();
 
-        //server = new LaptopServer(serverBuilder, 0, laptopStore, imageStore, ratingStore);
-        server = new LaptopServer(serverBuilder, 0, laptopStore);
+        server = new LaptopServer(serverBuilder, 0, laptopStore, imageStore, ratingStore);
+        //server = new LaptopServer(serverBuilder, 0, laptopStore);
         server.start();
 
         channel = grpcCleanup.register(
@@ -104,65 +105,65 @@ public class LaptopServerTest {
         CreateLaptopResponse response = stub.createLaptop(request);
     }
 
-//    @Test
-//    public void rateLaptop() throws Exception {
-//        Generator generator = new Generator();
-//        Laptop laptop = generator.NewLaptop();
-//        laptopStore.Save(laptop);
-//
-//        LaptopServiceGrpc.LaptopServiceStub stub = LaptopServiceGrpc.newStub(channel);
-//        RateLaptopResponseStreamObserver responseObserver = new RateLaptopResponseStreamObserver();
-//        StreamObserver<RateLaptopRequest> requestObserver = stub.rateLaptop(responseObserver);
-//
-//        double[] scores = {8, 7.5, 10};
-//        double[] averages = {8, 7.75, 8.5};
-//        int n = scores.length;
-//
-//        for (int i = 0; i < n; i++) {
-//            RateLaptopRequest request = RateLaptopRequest.newBuilder()
-//                    .setLaptopId(laptop.getId())
-//                    .setScore(scores[i])
-//                    .build();
-//            requestObserver.onNext(request);
-//        }
-//
-//        requestObserver.onCompleted();
-//        assertNull(responseObserver.err);
-//        assertTrue(responseObserver.completed);
-//        assertEquals(n, responseObserver.responses.size());
-//
-//        int idx = 0;
-//        for (RateLaptopResponse response : responseObserver.responses) {
-//            assertEquals(laptop.getId(), response.getLaptopId());
-//            assertEquals(idx + 1, response.getRatedCount());
-//            assertEquals(averages[idx], response.getAverageScore(), 1e-9);
-//            idx++;
-//        }
-//    }
-//
-//    private class RateLaptopResponseStreamObserver implements StreamObserver<RateLaptopResponse> {
-//        public List<RateLaptopResponse> responses;
-//        public Throwable err;
-//        public boolean completed;
-//
-//        public RateLaptopResponseStreamObserver() {
-//            responses = new LinkedList<>();
-//        }
-//
-//        @Override
-//        public void onNext(RateLaptopResponse response) {
-//            responses.add(response);
-//        }
-//
-//        @Override
-//        public void onError(Throwable t) {
-//            err = t;
-//        }
-//
-//        @Override
-//        public void onCompleted() {
-//            completed = true;
-//        }
-//    }
+    @Test
+    public void rateLaptop() throws Exception {
+        Generator generator = new Generator();
+        Laptop laptop = generator.NewLaptop();
+        laptopStore.Save(laptop);
+
+        LaptopServiceGrpc.LaptopServiceStub stub = LaptopServiceGrpc.newStub(channel);
+        RateLaptopResponseStreamObserver responseObserver = new RateLaptopResponseStreamObserver();
+        StreamObserver<RateLaptopRequest> requestObserver = stub.rateLaptop(responseObserver);
+
+        double[] scores = {8, 7.5, 10};
+        double[] averages = {8, 7.75, 8.5};
+        int n = scores.length;
+
+        for (int i = 0; i < n; i++) {
+            RateLaptopRequest request = RateLaptopRequest.newBuilder()
+                    .setLaptopId(laptop.getId())
+                    .setScore(scores[i])
+                    .build();
+            requestObserver.onNext(request);
+        }
+
+        requestObserver.onCompleted();
+        assertNull(responseObserver.err);
+        assertTrue(responseObserver.completed);
+        assertEquals(n, responseObserver.responses.size());
+
+        int idx = 0;
+        for (RateLaptopResponse response : responseObserver.responses) {
+            assertEquals(laptop.getId(), response.getLaptopId());
+            assertEquals(idx + 1, response.getRatedCount());
+            assertEquals(averages[idx], response.getAverageScore(), 1e-9);
+            idx++;
+        }
+    }
+
+    private class RateLaptopResponseStreamObserver implements StreamObserver<RateLaptopResponse> {
+        public List<RateLaptopResponse> responses;
+        public Throwable err;
+        public boolean completed;
+
+        public RateLaptopResponseStreamObserver() {
+            responses = new LinkedList<>();
+        }
+
+        @Override
+        public void onNext(RateLaptopResponse response) {
+            responses.add(response);
+        }
+
+        @Override
+        public void onError(Throwable t) {
+            err = t;
+        }
+
+        @Override
+        public void onCompleted() {
+            completed = true;
+        }
+    }
 
 }

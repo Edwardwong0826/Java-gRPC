@@ -2,10 +2,12 @@ package com.wong.grpc.service;
 
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import io.grpc.protobuf.services.ProtoReflectionService;
 
 import java.io.IOException;
 import java.util.logging.Logger;
 import java.util.concurrent.TimeUnit;
+
 public class LaptopServer {
     private static final Logger logger = Logger.getLogger(LaptopServer.class.getName());
 
@@ -19,7 +21,9 @@ public class LaptopServer {
     public LaptopServer(ServerBuilder serverBuilder, int port, LaptopStore laptopStore, ImageStore imageStore, RatingStore ratingStore) {
         this.port = port;
         LaptopService laptopService = new LaptopService(laptopStore, imageStore, ratingStore);
-        server = serverBuilder.addService(laptopService).build();
+        server = serverBuilder.addService(laptopService)
+                .addService(ProtoReflectionService.newInstance())
+                .build();
 
     }
 
